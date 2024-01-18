@@ -1,12 +1,13 @@
+import random
 import sys
 import tkinter
 import tkinter.messagebox
 from tkintermapview import TkinterMapView
 from pyswip import Prolog
+import pandas as pd
 
 
 class App(tkinter.Tk):
-
     APP_NAME = "map_view_demo.py"
     WIDTH = 800
     HEIGHT = 750  # This is now the initial size, not fixed.
@@ -27,7 +28,8 @@ class App(tkinter.Tk):
         self.text_area.grid(row=0, column=0, pady=(10, 0), padx=10, sticky="nsew")
 
         self.submit_button = tkinter.Button(self, text="Submit", command=self.process_text)
-        self.submit_button.grid(row=0, column=0, pady=(0, 10), padx=10, sticky="se")  # Placed within the same cell as text area
+        # Placed within the same cell as text area
+        self.submit_button.grid(row=0, column=0, pady=(0, 10), padx=10, sticky="se")
 
         # Lower part: Map Widget
         self.map_widget = TkinterMapView(self)
@@ -35,7 +37,6 @@ class App(tkinter.Tk):
 
         self.marker_list = []  # Keeping track of markers
         self.marker_path = None
-
 
     def __init__(self, *args, **kwargs):
         tkinter.Tk.__init__(self, *args, **kwargs)
@@ -52,7 +53,7 @@ class App(tkinter.Tk):
         # Upper part: Text Area and Submit Button
         self.text_area = tkinter.Text(self)
         self.text_area.grid(row=0, column=0, pady=10, padx=10, sticky="nsew")
-        
+
         self.submit_button = tkinter.Button(self, text="Submit", command=self.process_text)
         self.submit_button.grid(row=1, column=0, pady=10, sticky="ew")
 
@@ -63,32 +64,47 @@ class App(tkinter.Tk):
         self.marker_list = []  # Keeping track of markers
 
     def check_connections(self, results):
-        print('result2 ', results)
-        locations = []
+
+        copy_results = results.copy()
+        locations = set()
+
+        prolog.retractall("directly_connected(_,_)")
+        prolog.retractall("connected(_,_)")
+
+        adj_matrix = pd.read_csv('Adjacency_matrix.csv')
+
+        for index, row in adj_matrix.iterrows():
+            if row["Destination"] in copy_results:
+                for column in adj_matrix.columns:
+                    if column != "Destination":
+                        if adj_matrix.at[index, column] == 1 and column.lower() in results:
+                            prolog.assertz(f"directly_connected({row['Destination'].lower()},{column.lower()})")
+                copy_results.remove(row["Destination"])
+
+        prolog.assertz("connected(X, Y) :- directly_connected(X, Y)")
+        prolog.assertz("connected(X, Y) :- directly_connected(X, Z), connected(Z, Y)")
+
         for result in results:
-            city  = result["City"]
-            locations.append(city)
-            # TODO 5: create the knowledgebase of the city and its connected destinations using Adjacency_matrix.csv
+            query = f"connected({result.lower()}, X)"
+            connected = list(prolog.query(query))
+            for destination in connected:
+                locations.add(destination["X"])
 
-
-        return locations
+        if len(locations) == 0:
+            if len(results) < 5:
+                return list(results)
+            return random.sample(list(results), 5)
+        else:
+            if len(locations) < 5:
+                return list(locations)
+            return random.sample(locations, 5)
 
     def process_text(self):
         """Extract locations from the text area and mark them on the map."""
         text = self.text_area.get("1.0", "end-1c")  # Get text from text area
-        locations = self.extract_locations(text)  # Extract locations (you may use a more complex method here)
-
-
-        # TODO 4: create the query based on the extracted features of user desciption 
-        ################################################################################################
-        query = "destination(City,_, _, _, low, _, _, _, _, _, _, _, _)"
-        results = list(prolog.query(query))
-        print(results)
+        results = self.extract_locations(text)  # Extract locations (you may use a more complex method here)
         locations = self.check_connections(results)
-        # TODO 6: if the number of destinations is less than 6 mark and connect them 
-        ################################################################################################
         print(locations)
-        locations = ['mexico_city','rome' ,'brasilia']
         self.mark_locations(locations)
 
     def mark_locations(self, locations):
@@ -99,7 +115,6 @@ class App(tkinter.Tk):
                 self.marker_list.append(marker)
         self.connect_marker()
         self.map_widget.set_zoom(1)  # Adjust as necessary, 1 is usually the most zoomed out
-
 
     def connect_marker(self):
         print(self.marker_list)
@@ -115,35 +130,121 @@ class App(tkinter.Tk):
             self.marker_path = self.map_widget.set_path(position_list)
 
     def extract_locations(self, text):
-        """Extract locations from text. A placeholder for more complex logic."""
-        # Placeholder: Assuming each line in the text contains a single location name
-        # TODO 3: extract key features from user's description of destinations
-        ################################################################################################
+        words = text.split()
+        keyword = {}
+        locations = set()
+        for word in words:
+            if word in DESTINATION:
+                keyword["destination"] = word
+            elif word in COUNTRY:
+                keyword["country"] = word
+            elif word in REGION:
+                keyword["region"] = word
+            elif word in CLIMATE:
+                keyword["climate"] = word
+            elif word in BUDGET:
+                keyword["budget"] = word
+            elif word in ACTIVITY:
+                keyword["activity"] = word
+            elif word in DEMOGRAPHICS:
+                keyword["demographics"] = word
+            elif word in DURATION:
+                keyword["duration"] = word
+            elif word in CUISINE:
+                keyword["cuisine"] = word
+            elif word in HISTORY:
+                keyword["history"] = word
+            elif word in NATURAL_WONDER:
+                keyword["natural_wonder"] = word
+            elif word in ACCOMMODATION:
+                keyword["accommodation"] = word
+            elif word in LANGUAGE:
+                keyword["language"] = word
 
-        return [line.strip() for line in text.split('\n') if line.strip()]
+        for key, value in keyword.items():
+            query = f"{key}(Destination, {value.lower()})"
+            results = list(prolog.query(query))
+            for result in results:
+                locations.add(result["Destination"])
+
+        return locations
 
     def start(self):
         self.mainloop()
 
-# TODO 1: read destinations' descriptions from Destinations.csv and add them to the prolog knowledge base
-################################################################################################
-# STEP1: Define the knowledge base of illnesses and their symptoms
+
+# ...... create prolog
 
 prolog = Prolog()
 
-prolog.retractall("destination(_, _, _, _, _, _, _, _, _, _, _, _, _)")
-prolog.assertz("destination('Tokyo', japan, 'East Asia', temperate, high, cultural, solo, long, asian, modern, mountains, luxury, japanese)")
-prolog.assertz("destination('Ottawa', canada, 'North America', cold, medium, adventure, family_friendly, medium, european, modern, forests, mid_range, english)")
-prolog.assertz("destination('Mexico City', mexico, 'North America', temperate, low, cultural, senior, short, latin_american, ancient, mountains, budget, spanish)")
-prolog.assertz("destination('Rome', italy, 'Southern Europe', temperate, high, cultural, solo, medium, european, ancient, beaches, luxury, italian)")
-prolog.assertz("destination('Brasilia', brazil, 'South America', tropical, low, adventure, family_friendly, long, latin_american, modern, beaches, budget, portuguese)")
+# ...... delete history
+
+prolog.retractall("destinations(_,_)")
+prolog.retractall("country(_,_)")
+prolog.retractall("region(_,_)")
+prolog.retractall("climate(_,_)")
+prolog.retractall("budget(_,_)")
+prolog.retractall("activity(_,_)")
+prolog.retractall("demographics(_,_)")
+prolog.retractall("duration(_,_)")
+prolog.retractall("cuisine(_,_)")
+prolog.retractall("history(_,_)")
+prolog.retractall("natural_wonder(_,_)")
+prolog.retractall("accommodation(_,_)")
+prolog.retractall("language(_,_)")
+
+# ....... create knowledge base (flat bag)
+
+dataframe = pd.read_csv('Destinations.csv')
 
 
+for index, row in dataframe.iterrows():
+    prolog.assertz(f"destination('{row['Destination'].replace(" ", "-").replace(".", "")}')")
+    prolog.assertz(f"country('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Country'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"region('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Region'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"climate('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Climate'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"budget('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Budget'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"activity('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Activity'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"demographics('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Demographics'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"duration('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Duration'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"cuisine('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Cuisine'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"history('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['History'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"natural_wonder('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Natural_Wonder'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"accommodation('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Accommodation'].replace(" ", "-").replace(".", "").lower()}')")
+    prolog.assertz(f"language('{row['Destination'].replace(" ", "-").replace(".", "")}', '{row['Language'].replace(" ", "-").replace(".", "").lower()}')")
 
-# TODO 2: extract unique features from the Destinations.csv and save them in a dictionary
-################################################################################################
+# ...... extract unique features
 
+DESTINATION = set()
+COUNTRY = set()
+REGION = set()
+CLIMATE = set()
+BUDGET = set()
+ACTIVITY = set()
+DEMOGRAPHICS = set()
+DURATION = set()
+CUISINE = set()
+HISTORY = set()
+NATURAL_WONDER = set()
+ACCOMMODATION = set()
+LANGUAGE = set()
+
+for index, row in dataframe.iterrows():
+    DESTINATION.add(row['Destination'].lower())
+    COUNTRY.add(row['Country'].lower())
+    REGION.add(row['Region'].lower())
+    CLIMATE.add(row['Climate'].lower())
+    BUDGET.add(row['Budget'].lower())
+    ACTIVITY.add(row['Activity'].lower())
+    DEMOGRAPHICS.add(row['Demographics'].lower())
+    DURATION.add(row['Duration'].lower())
+    CUISINE.add(row['Cuisine'].lower())
+    HISTORY.add(row['History'].lower())
+    NATURAL_WONDER.add(row['Natural_Wonder'].lower())
+    ACCOMMODATION.add(row['Accommodation'].lower())
+    LANGUAGE.add(row['Language'].lower())
 
 if __name__ == "__main__":
     app = App()
     app.start()
+
