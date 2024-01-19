@@ -63,7 +63,7 @@ class App(tkinter.Tk):
 
         self.marker_list = []  # Keeping track of markers
 
-    def check_connections(self, results):
+    def check_connections(self, results, dic):
 
         copy_results = results.copy()
         locations = set()
@@ -82,7 +82,9 @@ class App(tkinter.Tk):
                 copy_results.remove(row["Destination"])
 
         prolog.assertz("connected(X, Y) :- directly_connected(X, Y)")
+        prolog.assertz("connected(Y, X) :- directly_connected(X, Y)")
         prolog.assertz("connected(X, Y) :- directly_connected(X, Z), connected(Z, Y)")
+        prolog.assertz("connected(X, Y) :- directly_connected(X, Z), directly_connected(Z, W), directly_connected(W, Y)")
 
         for result in results:
             query = f"connected({result.lower()}, X)"
@@ -90,20 +92,51 @@ class App(tkinter.Tk):
             for destination in connected:
                 locations.add(destination["X"])
 
+        max_features = len(dic)
+        org_locations = set()
         if len(locations) == 0:
-            if len(results) < 5:
-                return list(results)
-            return random.sample(list(results), 5)
+
+            while True:
+                for location in results:
+                    count = 0
+                    for key, value in dic.items():
+                        if location in dic[key]:
+                            count += 1
+                        if count == max_features:
+                            org_locations.add(location)
+                if len(org_locations) >= 5:
+                    break
+                else:
+                    max_features -= 1
+                    org_locations = set()
+
+        elif len(locations) > 0:
+
+            while True:
+                for location in locations:
+                    count = 0
+                    for key, value in dic.items():
+                        if location in dic[key]:
+                            count += 1
+                        if count == max_features:
+                            org_locations.add(location)
+                if len(org_locations) >= 5:
+                    break
+                else:
+                    max_features -= 1
+                    org_locations = set()
+
+        if len(org_locations) < 5:
+            output = list(org_locations)
         else:
-            if len(locations) < 5:
-                return list(locations)
-            return random.sample(locations, 5)
+            output = random.sample(list(org_locations), 5)
+        return output
 
     def process_text(self):
         """Extract locations from the text area and mark them on the map."""
         text = self.text_area.get("1.0", "end-1c")  # Get text from text area
-        results = self.extract_locations(text)  # Extract locations (you may use a more complex method here)
-        locations = self.check_connections(results)
+        results, dic = self.extract_locations(text)  # Extract locations (you may use a more complex method here)
+        locations = self.check_connections(results, dic)
         print(locations)
         self.mark_locations(locations)
 
@@ -161,13 +194,17 @@ class App(tkinter.Tk):
             elif word in LANGUAGE:
                 keyword["language"] = word
 
+        dic = {}
         for key, value in keyword.items():
             query = f"{key}(Destination, {value.lower()})"
             results = list(prolog.query(query))
+            temp = set()
             for result in results:
                 locations.add(result["Destination"])
+                temp.add(result["Destination"])
+            dic[key] = temp
 
-        return locations
+        return locations, dic
 
     def start(self):
         self.mainloop()
