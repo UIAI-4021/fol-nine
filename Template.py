@@ -168,41 +168,42 @@ class App(tkinter.Tk):
         locations = set()
         for word in words:
             if word in DESTINATION:
-                keyword["destination"] = word
+                keyword["destination"].append(word)
             elif word in COUNTRY:
-                keyword["country"] = word
+                keyword["country"].append(word)
             elif word in REGION:
-                keyword["region"] = word
+                keyword["region"].append(word)
             elif word in CLIMATE:
-                keyword["climate"] = word
+                keyword["climate"].append(word)
             elif word in BUDGET:
-                keyword["budget"] = word
+                keyword["budget"].append(word)
             elif word in ACTIVITY:
-                keyword["activity"] = word
+                keyword["activity"].append(word)
             elif word in DEMOGRAPHICS:
-                keyword["demographics"] = word
+                keyword["demographics"].append(word)
             elif word in DURATION:
-                keyword["duration"] = word
+                keyword["duration"].append(word)
             elif word in CUISINE:
-                keyword["cuisine"] = word
+                keyword["cuisine"].append(word)
             elif word in HISTORY:
-                keyword["history"] = word
+                keyword["history"].append(word)
             elif word in NATURAL_WONDER:
-                keyword["natural_wonder"] = word
+                keyword["natural_wonder"].append(word)
             elif word in ACCOMMODATION:
-                keyword["accommodation"] = word
+                keyword["accommodation"].append(word)
             elif word in LANGUAGE:
-                keyword["language"] = word
+                keyword["language"].append(word)
 
         dic = {}
         for key, value in keyword.items():
-            query = f"{key}(Destination, {value.lower()})"
-            results = list(prolog.query(query))
-            temp = set()
-            for result in results:
-                locations.add(result["Destination"])
-                temp.add(result["Destination"])
-            dic[key] = temp
+            for i in value:
+                query = f"{key}(Destination, {i.lower()})"
+                results = list(prolog.query(query))
+                temp = set()
+                for result in results:
+                    locations.add(result["Destination"])
+                    temp.add(result["Destination"])
+                dic[key] = temp
 
         return locations, dic
 
