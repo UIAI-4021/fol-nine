@@ -168,31 +168,31 @@ class App(tkinter.Tk):
         locations = set()
         for word in words:
             if word in DESTINATION:
-                keyword["destination"].append(word)
+                keyword["destination"] = word
             elif word in COUNTRY:
-                keyword["country"].append(word)
+                keyword["country"] = word
             elif word in REGION:
-                keyword["region"].append(word)
+                keyword["region"] = word
             elif word in CLIMATE:
-                keyword["climate"].append(word)
+                keyword["climate"] = word
             elif word in BUDGET:
-                keyword["budget"].append(word)
+                keyword["budget"] = word
             elif word in ACTIVITY:
-                keyword["activity"].append(word)
+                keyword["activity"] = word
             elif word in DEMOGRAPHICS:
-                keyword["demographics"].append(word)
+                keyword["demographics"] = word
             elif word in DURATION:
-                keyword["duration"].append(word)
+                keyword["duration"] = word
             elif word in CUISINE:
-                keyword["cuisine"].append(word)
+                keyword["cuisine"] = word
             elif word in HISTORY:
-                keyword["history"].append(word)
+                keyword["history"] = word
             elif word in NATURAL_WONDER:
-                keyword["natural_wonder"].append(word)
+                keyword["natural_wonder"] = word
             elif word in ACCOMMODATION:
-                keyword["accommodation"].append(word)
+                keyword["accommodation"] = word
             elif word in LANGUAGE:
-                keyword["language"].append(word)
+                keyword["language"] = word
 
         dic = {}
         for key, value in keyword.items():
